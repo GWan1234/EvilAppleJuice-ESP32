@@ -46,26 +46,7 @@ void setup() {
   pAdvertising->setDeviceAddress(null_addr, BLE_ADDR_TYPE_RANDOM);
 }
 
-void loop() {
-  // Turn lights on during "busy" part
-  digitalWrite(12, HIGH);
-  digitalWrite(13, HIGH);
-
-  // First generate fake random MAC
-  esp_bd_addr_t dummy_addr = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-  for (int i = 0; i < 6; i++){
-    dummy_addr[i] = random(256);
-
-    // It seems for some reason first 4 bits
-    // Need to be high (aka 0b1111), so we 
-    // OR with 0xF0
-    if (i == 0){
-      dummy_addr[i] |= 0xF0;
-    }
-  }
-
-  BLEAdvertisementData oAdvertisementData = BLEAdvertisementData();
-
+void setRandomDeviceData(BLEAdvertisementData &oAdvertisementData) {
   // Randomly pick data from one of the devices
   // First decide short or long
   // 0 = long (headphones), 1 = short (misc stuff like Apple TV)
@@ -89,6 +70,39 @@ void loop() {
       #endif
     #endif
   }
+}
+
+void setCustomBatteryLevel(BLEAdvertisementData &oAdvertisementData) {
+  uint8_t data[] = {0x1e, 0xff, 0x4c, 0x00, 0x07, 0x19, 0x07, 0x02, 0x20, 0x75, 0xaa, 0x30, 0x01, 0x00, 0x00, 0x45, 
+    0x45,
+    0x45,
+    0xC4,
+    0xda, 0x29, 0x58, 0xab, 0x8d, 0x29, 0x40, 0x3d, 0x5c, 0x1b, 0x93, 0x3a
+  };
+  oAdvertisementData.addData(std::string((char*)data, sizeof(data)));
+}
+
+void loop() {
+  // Turn lights on during "busy" part
+  digitalWrite(12, HIGH);
+  digitalWrite(13, HIGH);
+
+  // First generate fake random MAC
+  esp_bd_addr_t dummy_addr = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+  for (int i = 0; i < 6; i++){
+    dummy_addr[i] = random(256);
+
+    // It seems for some reason first 4 bits
+    // Need to be high (aka 0b1111), so we 
+    // OR with 0xF0
+    if (i == 0){
+      dummy_addr[i] |= 0xF0;
+    }
+  }
+
+  BLEAdvertisementData oAdvertisementData = BLEAdvertisementData();
+  // setRandomDeviceData(oAdvertisementData);
+  setCustomBatteryLevel(oAdvertisementData);
 
 /*  Page 191 of Apple's "Accessory Design Guidelines for Apple Devices (Release R20)" recommends to use only one of
       the three advertising PDU types when you want to connect to Apple devices.
