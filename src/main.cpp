@@ -11,6 +11,7 @@
 #include <esp_arduino_version.h>
 
 #include "devices.hpp"
+#include "led.hpp"
 
 // Bluetooth maximum transmit power
 #if defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32C2) || defined(CONFIG_IDF_TARGET_ESP32S3)
@@ -38,16 +39,8 @@ void setup() {
   preferences.begin("my-app", false);
 
   // Get the current mode, default to 0 if it doesn't exist
-  int mode = preferences.getInt("mode", 0);
-  
-  Serial.printf("Current Mode: %d\n", mode);
-  currentMode = mode;
-
-  // Increment and wrap 0 through 4
-  mode = (mode + 1) % 5;
-  
-  // Save it back for next time
-  preferences.putInt("mode", mode);
+  currentMode = preferences.getInt("mode", 0);
+  Serial.printf("Current Mode: %d\n", currentMode);
   preferences.end();
 
   // This is specific to the AirM2M ESP32 board
@@ -68,6 +61,22 @@ void setup() {
   // seems we need to init it with an address in setup() step.
   esp_bd_addr_t null_addr = {0xFE, 0xED, 0xC0, 0xFF, 0xEE, 0x69};
   pAdvertising->setDeviceAddress(null_addr, BLE_ADDR_TYPE_RANDOM);
+}
+
+void resetMode(){
+  currentMode = 0;
+  Serial.printf("Resetting mode to %d\n", currentMode);
+  preferences.begin("my-app", false);
+  preferences.putInt("mode", currentMode);
+  preferences.end();
+}
+
+void nextMode(){
+  currentMode = (currentMode + 1) % (sizeof(stateTable) / sizeof(stateTable[0]));
+  Serial.printf("Updating mode to %d\n", currentMode);
+  preferences.begin("my-app", false);
+  preferences.putInt("mode", currentMode);
+  preferences.end();
 }
 
 void setAdvertisementData(BLEAdvertisementData &oAdvertisementData, const AppleDevice& dev) {
@@ -92,29 +101,44 @@ void setRandomDeviceData(BLEAdvertisementData &oAdvertisementData) {
   setAdvertisementData(oAdvertisementData, dev);
 }
 
-// mode 0 = flash both LEDs
-// mode 1 = flash only right LED
-// mode 2 = flash only left LED
-// mode 3 = both LEDs ON
-// mode 4 = both LEDs OFF
-void controlLight(bool start){
-  if (start){
-    if (currentMode == 0 || currentMode == 1 || currentMode == 3){
-      digitalWrite(RIGHT_LED, HIGH);
-    }
-    if (currentMode == 0 || currentMode == 2 || currentMode == 3){
-      digitalWrite(LEFT_LED, HIGH);
-    }
-  } else {
-    if (currentMode == 0 || currentMode == 1 || currentMode == 2 || currentMode == 4){
-      digitalWrite(RIGHT_LED, LOW);
-      digitalWrite(LEFT_LED, LOW);
-    }
+bool shouldBeLitOn(LEDMode mode) {
+  switch (mode) {
+    case ON:    return true;
+    case OFF:   return false;
+    case FLASH: return true;
+    default:    return false;
   }
 }
 
+bool shouldBeLitOff(LEDMode mode) {
+  switch (mode) {
+    case ON:    return false;
+    case OFF:   return true;
+    case FLASH: return true;
+    default:    return false;
+  }
+}
+
+const int BOOT_BUTTON_PIN = 9;
+const unsigned long LONG_PRESS_TIME = 1000; // 1 seconds
+
 void loop() {
-  controlLight(true);
+  digitalWrite(LEFT_LED,  shouldBeLitOn(stateTable[currentMode][0])  ? HIGH : LOW);
+  digitalWrite(RIGHT_LED, shouldBeLitOn(stateTable[currentMode][1]) ? HIGH : LOW);
+
+  if (digitalRead(BOOT_BUTTON_PIN) == LOW) {
+    unsigned long startTime = millis();
+    while(digitalRead(BOOT_BUTTON_PIN) == LOW); 
+
+    unsigned long pressDuration = millis() - startTime;
+    if (pressDuration > LONG_PRESS_TIME) {
+      Serial.println("BOOT button long pressed!");
+      resetMode();
+    } else {
+      Serial.println("BOOT button short pressed!");
+      nextMode();
+    }
+  }
 
   // First generate fake random MAC
   esp_bd_addr_t dummy_addr = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
@@ -132,20 +156,35 @@ void loop() {
   BLEAdvertisementData oAdvertisementData = BLEAdvertisementData();
 
   switch (currentMode){
-    case 0:
-      setAdvertisementData(oAdvertisementData, ALL_DEVICES[VISION_PRO]);
+    case LEFT_OFF_RIGHT_OFF:
+      setAdvertisementData(oAdvertisementData, ALL_DEVICES[AIRPODS]); // This one seems the most spammy
       break;
-    case 1:
-      setAdvertisementData(oAdvertisementData, ALL_DEVICES[AIRPODS]);
+    case LEFT_OFF_RIGHT_FLASH:
+    setRandomDeviceData(oAdvertisementData);
       break;
-    case 2:
-      setAdvertisementData(oAdvertisementData, ALL_DEVICES[SOFTWARE_UPDATE]);
+    case LEFT_OFF_RIGHT_ON:
+      setAdvertisementData(oAdvertisementData, ALL_DEVICES[SOFTWARE_UPDATE]); // This is fairly spammy, not all phones
       break;
-    case 3:
-      setAdvertisementData(oAdvertisementData, ALL_DEVICES[APPLETV_SETUP]);
+    case LEFT_FLASH_RIGHT_OFF:
+      setAdvertisementData(oAdvertisementData, ALL_DEVICES[AIRPODS_GEN_2]); // TBD
       break;
-    case 4:
-      setRandomDeviceData(oAdvertisementData);
+    case LEFT_FLASH_RIGHT_FLASH:
+    setAdvertisementData(oAdvertisementData, ALL_DEVICES[VISION_PRO]); // THis one affects very few devices, not as spammy (but kinda fun)
+      break;
+    case LEFT_FLASH_RIGHT_ON:
+      setAdvertisementData(oAdvertisementData, ALL_DEVICES[AIRPODS_MAX]); // TBD
+      break;
+    case LEFT_ON_RIGHT_OFF:
+      setAdvertisementData(oAdvertisementData, ALL_DEVICES[APPLETV_SETUP]); // TBD
+      break;
+    case LEFT_ON_RIGHT_FLASH:
+      setAdvertisementData(oAdvertisementData, ALL_DEVICES[TRANSFER_NUMBER]); // TBD
+      break;
+    case LEFT_ON_RIGHT_ON:
+      setAdvertisementData(oAdvertisementData, ALL_DEVICES[APPLETV_PAIR]); // TBD
+      break;
+    default:
+      setAdvertisementData(oAdvertisementData, ALL_DEVICES[HOMEPOD_SETUP]); // TBD
       break;
   }
 
@@ -190,8 +229,8 @@ void loop() {
   // Start advertising
   pAdvertising->start();
 
-  // Turn lights off while "sleeping"
-  controlLight(false);
+  digitalWrite(LEFT_LED,  shouldBeLitOff(stateTable[currentMode][0]) ? LOW : HIGH);
+  digitalWrite(RIGHT_LED, shouldBeLitOff(stateTable[currentMode][1]) ? LOW : HIGH);
   delay(delayMilliseconds); // delay for delayMilliseconds ms
   pAdvertising->stop();
 
