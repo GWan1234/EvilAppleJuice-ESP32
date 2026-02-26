@@ -1,5 +1,24 @@
 #include <Arduino.h>
 
+enum PacketType { APPLE_AUDIO, APPLE_SETUP };
+struct AppleDevice {
+  const char* name;
+  uint8_t modelId;
+  PacketType type;
+};
+
+const AppleDevice ALL_DEVICES[] = {
+  // Audio Devices (31 bytes, ID at index 7)
+  {"Airpods Pro", 0x0e, APPLE_AUDIO},
+  {"Beats Solo 4", 0x25, APPLE_AUDIO},
+  
+  // Setup Devices (23 bytes, ID at index 13)
+  {"AppleTV Setup", 0x01, APPLE_SETUP},
+  {"Vision Pro", 0x24, APPLE_SETUP}
+};
+
+void generatePacket(const AppleDevice& device, uint8_t* buffer, size_t& outLength);
+
 /*
   These are audio devices: wireless headphones / earbuds
   It seems these need a shorter range between ESP & iDevice

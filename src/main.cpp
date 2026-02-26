@@ -9,6 +9,7 @@
 #include <esp_arduino_version.h>
 
 #include "devices.hpp"
+// #include "device.cpp"
 
 // Bluetooth maximum transmit power
 #if defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32C2) || defined(CONFIG_IDF_TARGET_ESP32S3)
@@ -60,14 +61,24 @@ void setRandomDeviceData(BLEAdvertisementData &oAdvertisementData) {
   // Randomly pick data from one of the devices
   // First decide short or long
   // 0 = long (headphones), 1 = short (misc stuff like Apple TV)
-  int device_choice = random(2);
-  if (device_choice == 0){
-    int index = random(22);
-    setAdvertisementData(oAdvertisementData, (char*)DEVICES[index], 31);
-  } else {
-    int index = random(13);
-    setAdvertisementData(oAdvertisementData, (char*)SHORT_DEVICES[index], 23);
-  }
+  // int device_choice = random(2);
+  // if (device_choice == 0){
+  //   int index = random(22);
+  //   setAdvertisementData(oAdvertisementData, (char*)DEVICES[index], 31);
+  // } else {
+  //   int index = random(13);
+  //   setAdvertisementData(oAdvertisementData, (char*)SHORT_DEVICES[index], 23);
+  // }
+
+  int idx = random(0, sizeof(ALL_DEVICES) / sizeof(ALL_DEVICES[0]));
+  AppleDevice dev = ALL_DEVICES[idx];
+
+  uint8_t packet[31];
+  size_t packetLen;
+  generatePacket(dev, packet, packetLen);
+
+  Serial.printf("Broadcasting %s (Length: %d)...\n", dev.name, packetLen);
+  setAdvertisementData(oAdvertisementData, (char*)packet, packetLen);
 }
 
 void setCustomBatteryLevel(BLEAdvertisementData &oAdvertisementData) {
@@ -99,9 +110,9 @@ void loop() {
   }
 
   BLEAdvertisementData oAdvertisementData = BLEAdvertisementData();
-  // setRandomDeviceData(oAdvertisementData);
+  setRandomDeviceData(oAdvertisementData);
   // setCustomBatteryLevel(oAdvertisementData);
-  setAdvertisementData(oAdvertisementData, (char*)SHORT_DEVICES[12], 23);
+  // setAdvertisementData(oAdvertisementData, (char*)SHORT_DEVICES[12], 23);
   // setAdvertisementData(oAdvertisementData, DEVICES[0], 31);
 
   /*  Page 191 of Apple's "Accessory Design Guidelines for Apple Devices (Release R20)" recommends to use only one of
