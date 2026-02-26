@@ -46,6 +46,16 @@ void setup() {
   pAdvertising->setDeviceAddress(null_addr, BLE_ADDR_TYPE_RANDOM);
 }
 
+void setAdvertisementData(BLEAdvertisementData &oAdvertisementData, char* data, size_t dataSize) {
+  #ifdef ESP_ARDUINO_VERSION_MAJOR
+    #if ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(3, 0, 0)
+        oAdvertisementData.addData(String((char*)data, dataSize));
+    #else
+        oAdvertisementData.addData(std::string((char*)data, dataSize));
+    #endif
+  #endif
+}
+
 void setRandomDeviceData(BLEAdvertisementData &oAdvertisementData) {
   // Randomly pick data from one of the devices
   // First decide short or long
@@ -53,22 +63,10 @@ void setRandomDeviceData(BLEAdvertisementData &oAdvertisementData) {
   int device_choice = random(2);
   if (device_choice == 0){
     int index = random(22);
-    #ifdef ESP_ARDUINO_VERSION_MAJOR
-      #if ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(3, 0, 0)
-          oAdvertisementData.addData(String((char*)DEVICES[index], 31));
-      #else
-          oAdvertisementData.addData(std::string((char*)DEVICES[index], 31));
-      #endif
-    #endif
+    setAdvertisementData(oAdvertisementData, (char*)DEVICES[index], 31);
   } else {
     int index = random(13);
-    #ifdef ESP_ARDUINO_VERSION_MAJOR
-      #if ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(3, 0, 0)
-          oAdvertisementData.addData(String((char*)SHORT_DEVICES[index], 23));
-      #else
-          oAdvertisementData.addData(std::string((char*)SHORT_DEVICES[index], 23));
-      #endif
-    #endif
+    setAdvertisementData(oAdvertisementData, (char*)SHORT_DEVICES[index], 23);
   }
 }
 
@@ -79,7 +77,7 @@ void setCustomBatteryLevel(BLEAdvertisementData &oAdvertisementData) {
     0xC4,
     0xda, 0x29, 0x58, 0xab, 0x8d, 0x29, 0x40, 0x3d, 0x5c, 0x1b, 0x93, 0x3a
   };
-  oAdvertisementData.addData(std::string((char*)data, sizeof(data)));
+  setAdvertisementData(oAdvertisementData, (char*)data, sizeof(data));
 }
 
 void loop() {
@@ -102,9 +100,11 @@ void loop() {
 
   BLEAdvertisementData oAdvertisementData = BLEAdvertisementData();
   // setRandomDeviceData(oAdvertisementData);
-  setCustomBatteryLevel(oAdvertisementData);
+  // setCustomBatteryLevel(oAdvertisementData);
+  setAdvertisementData(oAdvertisementData, (char*)SHORT_DEVICES[12], 23);
+  // setAdvertisementData(oAdvertisementData, DEVICES[0], 31);
 
-/*  Page 191 of Apple's "Accessory Design Guidelines for Apple Devices (Release R20)" recommends to use only one of
+  /*  Page 191 of Apple's "Accessory Design Guidelines for Apple Devices (Release R20)" recommends to use only one of
       the three advertising PDU types when you want to connect to Apple devices.
           // 0 = ADV_TYPE_IND, 
           // 1 = ADV_TYPE_SCAN_IND
