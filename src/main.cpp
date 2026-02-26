@@ -9,7 +9,6 @@
 #include <esp_arduino_version.h>
 
 #include "devices.hpp"
-// #include "device.cpp"
 
 // Bluetooth maximum transmit power
 #if defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32C2) || defined(CONFIG_IDF_TARGET_ESP32S3)
@@ -59,17 +58,6 @@ void setAdvertisementData(BLEAdvertisementData &oAdvertisementData, char* data, 
 
 void setRandomDeviceData(BLEAdvertisementData &oAdvertisementData) {
   // Randomly pick data from one of the devices
-  // First decide short or long
-  // 0 = long (headphones), 1 = short (misc stuff like Apple TV)
-  // int device_choice = random(2);
-  // if (device_choice == 0){
-  //   int index = random(22);
-  //   setAdvertisementData(oAdvertisementData, (char*)DEVICES[index], 31);
-  // } else {
-  //   int index = random(13);
-  //   setAdvertisementData(oAdvertisementData, (char*)SHORT_DEVICES[index], 23);
-  // }
-
   int idx = random(0, sizeof(ALL_DEVICES) / sizeof(ALL_DEVICES[0]));
   AppleDevice dev = ALL_DEVICES[idx];
 

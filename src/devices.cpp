@@ -1,10 +1,5 @@
 #include <Arduino.h>
 #include "devices.hpp"
-// struct AppleDevice {
-//     const char* name;
-//     uint8_t modelId;
-//     PacketType type;
-// };
 
 void generatePacket(const AppleDevice& device, uint8_t* buffer, size_t& outLength) {
   memset(buffer, 0, 31); // Clear buffer
