@@ -30,6 +30,8 @@ Preferences preferences;
 
 #define RIGHT_LED 12
 #define LEFT_LED 13
+const int BOOT_BUTTON_PIN = 9;
+const unsigned long LONG_PRESS_TIME = 1000; // 1 seconds
 
 void setup() {
   Serial.begin(115200);
@@ -47,7 +49,8 @@ void setup() {
   // https://wiki.luatos.com/chips/esp32c3/board.html
   pinMode(RIGHT_LED, OUTPUT);
   pinMode(LEFT_LED, OUTPUT);
-
+  pinMode(BOOT_BUTTON_PIN, INPUT_PULLUP);
+  
   BLEDevice::init("AirPods 69");
 
   // Increase the BLE Power to 21dBm (MAX)
@@ -118,9 +121,6 @@ bool shouldBeLitOff(LEDMode mode) {
     default:    return false;
   }
 }
-
-const int BOOT_BUTTON_PIN = 9;
-const unsigned long LONG_PRESS_TIME = 1000; // 1 seconds
 
 void loop() {
   digitalWrite(LEFT_LED,  shouldBeLitOn(stateTable[currentMode][0])  ? HIGH : LOW);
