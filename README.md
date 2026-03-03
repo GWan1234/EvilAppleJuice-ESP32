@@ -74,7 +74,7 @@ sudo chmod 666 /dev/ttyACM0
 
 #### Windows
 
-If you've setup the Arduino CLI, e.g. via https://wellys.com/posts/esp32_cli/ , then you can `cd` into the `src` folder, and run the following:
+If you've setup the Arduino CLI, e.g. via https://wellys.com/posts/esp32_cli/ , then from the project root, run the following:
 
 ```
 arduino-cli compile --fqbn esp32:esp32:esp32c6 EvilAppleJuice-ESP32-INO -v
@@ -84,6 +84,15 @@ arduino-cli monitor -c baudrate=115200 -p COM4
 
 Replace `COM4` with the port the ESP32 is on, and `esp32c6` with the appropriate board.
 
-### Spamming a specific device
+#### Linux
 
-Some basic instructions are here: https://github.com/ckcr4lyf/EvilAppleJuice-ESP32/issues/42#issuecomment-2294610072 , but if you're not a script kiddie you can probably figure it out.
+Example for AirM2M's ESP32C3:
+```
+arduino-cli compile --fqbn esp32:esp32:AirM2M_CORE_ESP32C3 EvilAppleJuice-ESP32-INO -v && \
+arduino-cli upload -p /dev/ttyACM0 --fqbn esp32:esp32:AirM2M_CORE_ESP32C3 EvilAppleJuice-ESP32-INO -v && \
+arduino-cli monitor -c baudrate=115200 -p /dev/ttyACM0
+```
+
+## Project Layout
+
+This was originally developer for use with PlatformIO + VSCode, but some people requested support for Arduino. This s achieved by basically copying the `main.cpp` file as `EvilAppleJuice-ESP32-INO.ino` and put into its own folder. We copy the other `.hpp` & `.cpp` files as is.
