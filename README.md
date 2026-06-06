@@ -10,6 +10,14 @@ Based off of the work of [ronaldstoner](https://github.com/ronaldstoner) in the 
 
 Also thanks to [simondankelmann](https://github.com/simondankelmann) for their discoveries in new advertising messages to pop-up new notifications in iOS devices [source](https://github.com/simondankelmann/Bluetooth-LE-Spam/blob/main/app/src/main/java/de/simon/dankelmann/bluetoothlespam/AdvertisementSetGenerators/ContinuityActionModalAdvertisementSetGenerator.kt)
 
+## How?
+
+<a href="https://youtu.be/y2WbXvp2viI?t=17m6s"><img width="960" height="540" alt="Image" src="https://github.com/user-attachments/assets/20795ed7-55e9-4cfc-979a-fff85cf88eca" /></a>
+
+I gave a brief (3min) talk of how it works at COSCUP 2025, it's hosted on their YouTube channel: [https://youtu.be/y2WbXvp2viI?t=17m6s](https://youtu.be/y2WbXvp2viI?t=17m6s)
+
+## Some features & testing
+
 With the randomization optimizations it can render an iPhone almost useless with a single ESP32 (a new notification as soon as you close the old one).
 
 Confirmed on:
